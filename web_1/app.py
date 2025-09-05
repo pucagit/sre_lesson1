@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, url_for # type: ignore
+from flask import Flask, render_template # type: ignore
 import sqlite3
 import aiosqlite # type: ignore
 
@@ -28,10 +28,6 @@ def init_db():
         conn.close()
 
 init_db()
-
-@app.errorhandler(404)
-def page_not_found(error):
-    return redirect(url_for('index'))
 
 @app.get("/")
 async def index():
