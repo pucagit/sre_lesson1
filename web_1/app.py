@@ -45,3 +45,6 @@ async def hello_world():
         await db.commit()
 
     return render_template('index.html', count=count)
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=6000)
