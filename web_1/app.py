@@ -34,7 +34,7 @@ def page_not_found(error):
     return redirect(url_for('index'))
 
 @app.get("/")
-async def hello_world():
+async def index():
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("BEGIN IMMEDIATE")
         cursor = await db.execute(
@@ -47,4 +47,4 @@ async def hello_world():
     return render_template('index.html', count=count)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=6000)
+    app.run(host='0.0.0.0', port=5001)
