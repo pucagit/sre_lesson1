@@ -1,81 +1,177 @@
-# Bài tập số 1
+# Triển khai 2 Flask app với Gunicorn + Nginx + HTTPS + Giới hạn IP
 
-# Đặc tả yêu cầu
+## Mục tiêu
 
-## Yêu cầu kiến thức
+* `web1.pucavv.io.vn` → app **web\_1**
+* `web2.pucavv.io.vn` → app **web\_2** (chỉ cho phép truy cập từ IP chỉ định)
+* Chạy Gunicorn dưới systemd, Nginx reverse proxy qua **Unix socket**, cài Let’s Encrypt (HTTPS).
 
-- Hiểu về quy trình deploy một ứng dụng web hoàn chỉnh theo cách truyền thống
-- Hiểu về Nginx reverse proxy, HTTPS, DNS
+> Repo/đường dẫn (ví dụ):
+>
+> * `/home/ubuntu/sre_lesson1/web_1`
+> * `/home/ubuntu/sre_lesson1/web_2`
+> * Mỗi app có `wsgi.py` với `app` (tức **entrypoint** là `wsgi:app`) và venv là `.venv`.
 
-## Yêu cầu kỹ năng
+---
 
-- Viết được config Nginx hoàn chỉnh, trong đó đã bao gồm cấu hình HTTPS
-- Biết cách trỏ DNS record, quản lý domain và subdomain
+## 0) Chuẩn bị
 
-# Đề bài
+1. **DNS**: Tạo 2 bản ghi A trỏ về Public IP của EC2
 
-## Yêu cầu đề bài
+   * `web1.pucavv.io.vn` → `<EC2 IPv4>`
+   * `web2.pucavv.io.vn` → `<EC2 IPv4>`
+2. **Security Group**: Cho phép inbound **TCP 80, 443** từ Internet, **TCP 22** với giới hạn IP để truy cập SSH.
+3. **Packages**
 
-1. Viết 2 ứng dụng web đơn giản chạy trên cùng 1 server. Mỗi khi truy cập trang web thứ nhất sẽ hiển thị dòng chữ **Bạn là lượt truy cập thứ xxx;** trang web thứ hai chỉ đơn giản là in ra thông tin của request như IP, phương thức, URL,…
-2. Tạo 2 DNS record (ví dụ [web1.example.com](http://web1.example.com) và [web2.example.com](http://web2.example.com) ) trỏ về server trên.
-3. Cài đặt Nginx và viết file config sao cho khi truy cập vào [web1.example.com](http://web1.example.com) sẽ ra trang web thứ nhất, truy cập vào [web2.example.com](http://web2.example.com) sẽ ra trang web thứ hai. Giới hạn truy cập vào trang web thứ hai theo IP (ví dụ cho phép IP `192.168.1.14` truy cập nhưng chặn IP `192.168.1.15`) dùng config của Nginx.
-4. Cấu hình HTTPS cho 2 domain trên.
+   ```bash
+   sudo apt update
+   sudo apt install -y python3-venv python3-pip nginx certbot python3-certbot-nginx
+   ```
 
-## Thời gian làm bài: 7 ngày (tính từ ngày nhận bài tập)
+---
 
-## Yêu cầu bài làm
+## 1) Virtualenv & Dependencies (mỗi app)
 
-- Đối với project:
-    - Trang web thứ nhất cần phải có database, trang thứ hai thì không cần.
-    - Ngôn ngữ và database sử dụng: tùy chọn, khuyến khích dùng python.
-    - Nếu không có sẵn server, không thích mua domain thì deploy local. Còn nếu muốn thử tự dùng server free thì đăng ký tài khoản AWS hoặc Azure với mail edu. Domain .xyz cũng rất rẻ, mua lần đầu tiên khoảng 1$/năm.
-    - Cấu hình HTTPS cho 2 trang web (nếu mua domain thì dùng Lets Encrypt, local thì self signed là đủ)
-    - Sau khi deploy, server không expose cổng nào ra công khai trừ 80 và 443.
-    - Push bài tập lên Gitlab, sử dụng Git Terminal **(không sử dụng Git Desktop)**
+```bash
+# web_1
+cd /home/ubuntu/sre_lesson1/web_1
+python3 -m venv .venv
+./.venv/bin/pip install -r requirements.txt
 
-## Yêu cầu và hướng dẫn nộp bài
-
-- Sử dụng Gitlab để lưu trữ bài tập
-    - Tạo 1 private group trên [Gitlab](https://gitlab.com/) có tên `cs_<your_name>`, chẳng hạn `cs_vu_hai_dang`
-    - Nếu tên group bị trùng thì thêm một chữ số theo thứ tự Alphabet phía sau, chẳng hạn `cs_vu_hai_dang_1`
-    - Nếu group đã được tạo trước đó thì không cần tạo lại
-    - Thêm member cho group: @dangvu99 với role `Reporter`
-    - Tạo 1 private project bên trong private group vừa được tạo, có tên `devops_week1`
-    - Download [GIT client](https://git-scm.com/downloads/guis) và sử dụng nó để push kết quả bải tập lên Gitlab
-    
-- Thông báo hoàn thành bài tập và trao đổi với người hướng dẫn Vũ Hải Đăng theo địa chỉ email `dangvh@cystack.net` với tiêu đề là `HomeworkDevopsX-<Hoten>` (X là số thứ tự của tuần). Phần nội dung thư không để trống, có ghi một số thông tin vắn tắt liên quan. Ví dụ:
-
-```
-Chào anh,
-
-Em là xxx, 
-    
-Bài tập tuần X đã được em push lên gitlab tại địa chỉ https://gitlab.com/cs_nguyen_huu_trung/weekX/
-    
-Rất mong nhận được sự phản hồi từ anh.
-    
-Em cảm ơn.
+# web_2
+cd /home/ubuntu/sre_lesson1/web_2
+python3 -m venv .venv
+./.venv/bin/pip install -r requirements.txt
 ```
 
-## Lưu ý
+---
 
-- Bài bị phát hiện copy từ người khác, không hiểu nội dung thì TTS sẽ chịu hình thức kỷ luật ở mức cao nhất.
-- Mọi nguồn tham khảo đều phải được ghi chú rõ ràng trong báo cáo
-- Bài nộp không theo chuẩn nêu trên sẽ không được công nhận.
+## 2) Tạo service systemd (Gunicorn → Unix socket dưới /run)
 
-# Tài liệu tham khảo
+### `web_1`
 
-## Liên quan trực tiếp tới nội dung chính
+`/etc/systemd/system/web_1.service`
 
-### Lý thuyết
+```ini
+[Unit]
+Description=Gunicorn for web_1
+After=network.target
 
-- [Nginx](http://www.nginx.com)
-- [DNS record](https://www.cloudflare.com/learning/dns/dns-records/)
+[Service]
+User=ubuntu
+Group=www-data
+WorkingDirectory=/home/ubuntu/sre_lesson1/web_1
+Environment="PATH=/home/ubuntu/sre_lesson1/web_1/.venv/bin"
 
-### Kỹ năng
+ExecStart=/home/ubuntu/sre_lesson1/web_1/.venv/bin/python -m gunicorn \
+  --workers 3 \
+  --bind unix:/run/web_1/web_1.sock -m 007\
+  wsgi:app
 
-- [Nginx reverse proxy](https://docs.nginx.com/nginx/admin-guide/web-server/reverse-proxy/)
+[Install]
+WantedBy=multi-user.target
+```
 
-## Tham khảo thêm
+### `web_2`
 
-- DM cho người hướng dẫn @Dang Vu
+`/etc/systemd/system/web_2.service`
+
+```ini
+[Unit]
+Description=Gunicorn for web_2
+After=network.target
+
+[Service]
+User=ubuntu
+Group=www-data
+WorkingDirectory=/home/ubuntu/sre_lesson1/web_2
+Environment="PATH=/home/ubuntu/sre_lesson1/web_2/.venv/bin"
+
+ExecStart=/home/ubuntu/sre_lesson1/web_2/.venv/bin/python -m gunicorn \
+  --workers 3 \
+  --bind unix:/run/web_2/web_2.sock -m 007 \
+  wsgi:app
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Kích hoạt:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now web_1 web_2
+systemctl --no-pager status web_1 web_2
+```
+
+---
+
+## 3) Cấu hình Nginx (2 server blocks)
+
+### `web1.pucavv.io.vn` → web\_1
+
+`/etc/nginx/sites-available/web_1`
+
+```nginx
+server {
+    listen 80;
+    server_name web1.pucavv.io.vn;
+
+    location / {
+        include proxy_params;
+        proxy_pass http://unix:/run/web_1/web_1.sock;
+        proxy_read_timeout 120s;
+    }
+}
+```
+
+### `web2.pucavv.io.vn` → web\_2 (giới hạn IP)
+
+`/etc/nginx/sites-available/web_2`
+
+```nginx
+server {
+    listen 80;
+    server_name web2.pucavv.io.vn;
+
+    # Cho ACME challenge
+    location ^~ /.well-known/acme-challenge/ {
+        default_type "text/plain";
+        allow all;          # cho LetsEncrypt truy cập xác thực
+        root /var/www/html;
+    }
+
+    # Giới hạn IP cho phần còn lại
+    location / {
+        allow 203.0.113.45;    
+        deny  all;
+
+        include proxy_params;
+        proxy_pass http://unix:/run/web_2/web_2.sock;
+        proxy_read_timeout 120s;
+    }
+}
+```
+
+Bật site & reload:
+
+```bash
+sudo ln -sf /etc/nginx/sites-available/web_1 /etc/nginx/sites-enabled/web_1
+sudo ln -sf /etc/nginx/sites-available/web_2 /etc/nginx/sites-enabled/web_2
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+---
+
+## 4) Bật HTTPS (Let’s Encrypt)
+**Cấp cert cho cả 2 domain cùng lúc:**
+
+```bash
+sudo certbot --nginx \
+  -d web1.pucavv.io.vn \
+  -d web2.pucavv.io.vn \
+  --redirect
+```
+
+> Với `web2` đang giới hạn IP: do đã mở `/.well-known/acme-challenge/` cho **allow all**, ACME sẽ xác thực được.

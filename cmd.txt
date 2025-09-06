@@ -1,6 +1,0 @@
-sudo apt install nginx python3 python3-venv python3-pip -y
-sudo ufw allow 'Nginx Full' 2>/dev/null || true
-
-sudo ln -sf /etc/nginx/sites-available/web_1.conf /etc/nginx/sites-enabled/web_1.conf
-# (optional) disable the default site to avoid conflicts
-sudo rm -f /etc/nginx/sites-enabled/default
