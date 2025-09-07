@@ -175,3 +175,7 @@ sudo certbot --nginx \
 ```
 
 > Với `web2` đang giới hạn IP: do đã mở `/.well-known/acme-challenge/` cho **allow all**, ACME sẽ xác thực được.
+
+---
+
+Tham khảo: https://www.digitalocean.com/community/tutorials/how-to-serve-flask-applications-with-gunicorn-and-nginx-on-ubuntu-22-04
