@@ -57,7 +57,7 @@ Group=www-data
 WorkingDirectory=/home/ubuntu/sre_lesson1/web_1
 Environment="PATH=/home/ubuntu/sre_lesson1/web_1/.venv/bin"
 
-ExecStart=/home/ubuntu/sre_lesson1/web_1/.venv/bin/python -m gunicorn \
+ExecStart=/home/ubuntu/sre_lesson1/web_1/.venv/bin/gunicorn \
   --workers 3 \
   --bind unix:/run/web_1/web_1.sock -m 007\
   wsgi:app
@@ -81,7 +81,7 @@ Group=www-data
 WorkingDirectory=/home/ubuntu/sre_lesson1/web_2
 Environment="PATH=/home/ubuntu/sre_lesson1/web_2/.venv/bin"
 
-ExecStart=/home/ubuntu/sre_lesson1/web_2/.venv/bin/python -m gunicorn \
+ExecStart=/home/ubuntu/sre_lesson1/web_2/.venv/bin/gunicorn \
   --workers 3 \
   --bind unix:/run/web_2/web_2.sock -m 007 \
   wsgi:app
@@ -90,7 +90,10 @@ ExecStart=/home/ubuntu/sre_lesson1/web_2/.venv/bin/python -m gunicorn \
 WantedBy=multi-user.target
 ```
 
-Kích hoạt:
+> Note: `-m 007` ~ `umask 007`: ngăn cấm truy cập của user khác tới các file hoặc directory mới tạo bởi gunicorn.
+
+
+**Kích hoạt:**
 
 ```bash
 sudo systemctl daemon-reload
