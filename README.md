@@ -6,12 +6,6 @@
 * `web2.pucavv.io.vn` → app **web\_2** (chỉ cho phép truy cập từ IP chỉ định)
 * Chạy Gunicorn dưới systemd, Nginx reverse proxy qua **Unix socket**, cài Let’s Encrypt (HTTPS).
 
-> Repo/đường dẫn (ví dụ):
->
-> * `/home/ubuntu/sre_lesson1/web_1`
-> * `/home/ubuntu/sre_lesson1/web_2`
-> * Mỗi app có `wsgi.py` với `app` (tức **entrypoint** là `wsgi:app`) và venv là `.venv`.
-
 ---
 
 ## 0) Chuẩn bị
@@ -20,7 +14,7 @@
 
    * `web1.pucavv.io.vn` → `<EC2 IPv4>`
    * `web2.pucavv.io.vn` → `<EC2 IPv4>`
-2. **Security Group**: Cho phép inbound **TCP 80, 443** từ Internet, **TCP 22** với giới hạn IP để truy cập SSH.
+2. **Security Group**: Cho phép inbound **TCP 80, 443** từ Internet, **TCP 22** với giới hạn IP để truy cập SSH (còn lại mặc định cấm). Cho phép outbound tới mọi địa chỉ IP.
 3. **Packages**
 
    ```bash
@@ -48,7 +42,7 @@ python3 -m venv .venv
 
 ## 2) Tạo service systemd (Gunicorn → Unix socket dưới /run)
 
-### `web_1`
+### web_1
 
 `/etc/systemd/system/web_1.service`
 
@@ -72,7 +66,7 @@ ExecStart=/home/ubuntu/sre_lesson1/web_1/.venv/bin/python -m gunicorn \
 WantedBy=multi-user.target
 ```
 
-### `web_2`
+### web_2
 
 `/etc/systemd/system/web_2.service`
 
@@ -108,7 +102,7 @@ systemctl --no-pager status web_1 web_2
 
 ## 3) Cấu hình Nginx (2 server blocks)
 
-### `web1.pucavv.io.vn` → web\_1
+### web1.pucavv.io.vn → web_1
 
 `/etc/nginx/sites-available/web_1`
 
@@ -125,7 +119,7 @@ server {
 }
 ```
 
-### `web2.pucavv.io.vn` → web\_2 (giới hạn IP)
+### web2.pucavv.io.vn → web_2 (giới hạn IP)
 
 `/etc/nginx/sites-available/web_2`
 
@@ -160,6 +154,11 @@ sudo ln -sf /etc/nginx/sites-available/web_1 /etc/nginx/sites-enabled/web_1
 sudo ln -sf /etc/nginx/sites-available/web_2 /etc/nginx/sites-enabled/web_2
 sudo rm -f /etc/nginx/sites-enabled/default
 sudo nginx -t && sudo systemctl reload nginx
+```
+
+> **Note:** Có thể nhận response `HTTP 502 Bad Gateway` do `Nginx` không thể truy cập tới file socket `gunicorn`. Điều này xảy ra bởi vì home directory của user không cho phép user khác truy cập vào file bên trong nó. Để giải quyết lỗi này cấp tối thiểu quyền `0755` thư mục `/home/ubuntu`:
+```
+$ sudo chmod 755 /home/ubuntu
 ```
 
 ---
