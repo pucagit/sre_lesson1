@@ -17,16 +17,26 @@
 2. **Security Group**: Cho phép inbound **TCP 80, 443** từ Internet, **TCP 22** với giới hạn IP để truy cập SSH (còn lại mặc định cấm). Cho phép outbound tới mọi địa chỉ IP.
 3. **Packages**
 
-   ```bash
-   sudo apt update
-   sudo apt install -y python3-venv python3-pip nginx certbot python3-certbot-nginx
    ```
-
+   sudo apt update
+   sudo apt install -y python3-venv python3-pip nginx certbot python3-certbot-nginx mysql-server
+   ```
+4. **Setup MySQL**
+  - Chạy MySQL Server:
+    ```
+    sudo systemctl start mysql
+    sudo systemctl enable mysql
+    ```
+  - Chạy secure installation:
+    ```
+    sudo mysql_secure_installation
+    ```
+  - Tạo database 
 ---
 
 ## 1) Virtualenv & Dependencies (mỗi app)
 
-```bash
+```
 # web_1
 cd /home/ubuntu/sre_lesson1/web_1
 python3 -m venv .venv
@@ -95,7 +105,7 @@ WantedBy=multi-user.target
 
 **Kích hoạt:**
 
-```bash
+```
 sudo systemctl daemon-reload
 sudo systemctl enable --now web_1 web_2
 systemctl --no-pager status web_1 web_2
@@ -152,7 +162,7 @@ server {
 
 Bật site & reload:
 
-```bash
+```
 sudo ln -sf /etc/nginx/sites-available/web_1 /etc/nginx/sites-enabled/web_1
 sudo ln -sf /etc/nginx/sites-available/web_2 /etc/nginx/sites-enabled/web_2
 sudo rm -f /etc/nginx/sites-enabled/default
@@ -169,7 +179,7 @@ $ sudo chmod 755 /home/ubuntu
 ## 4) Bật HTTPS (Let’s Encrypt)
 **Cấp cert cho cả 2 domain cùng lúc:**
 
-```bash
+```
 sudo certbot --nginx \
   -d web1.pucavv.io.vn \
   -d web2.pucavv.io.vn \

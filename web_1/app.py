@@ -1,46 +1,61 @@
-from flask import Flask, render_template # type: ignore
-import sqlite3
-import aiosqlite # type: ignore
+from flask import Flask, render_template
+import mysql.connector
 
-DB_PATH = "my_database.db"
+# Update this with your MySQL credentials
+DB_CONFIG = {
+    "host": "localhost",
+    "user": "web1",        # change if needed
+    "password": "web1",# change if needed
+    "database": "web1"     # create this database beforehand
+}
 
 app = Flask(__name__)
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    try:
-        cur = conn.cursor()
-        cur.execute("PRAGMA journal_mode=WAL") # Enable WAL mode for better concurrency
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS access (
-                id INTEGER PRIMARY KEY CHECK (id = 1),
-                count INTEGER NOT NULL
-            )
-        """)
-        # Ensure there is exactly one row (id=1)
-        cur.execute("""
-            INSERT INTO access (id, count)
-            SELECT 1, 0
-            WHERE NOT EXISTS (SELECT 1 FROM access WHERE id = 1)
-        """)
-        conn.commit()
-    finally:
-        conn.close()
+    conn = mysql.connector.connect(
+        host=DB_CONFIG["host"],
+        user=DB_CONFIG["user"],
+        password=DB_CONFIG["password"]
+    )
+    cur = conn.cursor()
+    cur.execute("CREATE DATABASE IF NOT EXISTS web1")
+    cur.close()
+    conn.close()
+
+    conn = mysql.connector.connect(**DB_CONFIG)
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS access (
+            id INT PRIMARY KEY,
+            count INT NOT NULL
+        )
+    """)
+    cur.execute("""
+        INSERT INTO access (id, count)
+        SELECT 1, 0 FROM DUAL
+        WHERE NOT EXISTS (SELECT * FROM access WHERE id = 1)
+    """)
+    conn.commit()
+    cur.close()
+    conn.close()
 
 init_db()
 
-@app.get("/")
-async def index():
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("BEGIN IMMEDIATE")
-        cursor = await db.execute(
-            "UPDATE access SET count = count + 1 WHERE id = 1 RETURNING count"
-        )
-        row = await cursor.fetchone()
-        count = row[0] if row else 0
-        await db.commit()
+@app.route("/")
+def index():
+    conn = mysql.connector.connect(**DB_CONFIG)
+    cur = conn.cursor()
 
-    return render_template('index.html', count=count)
+    cur.execute("UPDATE access SET count = count + 1 WHERE id = 1")
+    conn.commit()
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8888)
+    cur.execute("SELECT count FROM access WHERE id = 1")
+    (count,) = cur.fetchone()
+
+    cur.close()
+    conn.close()
+
+    return render_template("index.html", count=count)
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8888, debug=True)
